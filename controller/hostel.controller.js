@@ -29,7 +29,7 @@ export const addReview = async (req, res) => {
     });
 
     if (isExistReview) {
-      return res.status(404).json({ message: "Feedback already submitted" });
+      return res.status(204).json({ message: "Feedback already submitted" });
     }
 
     const hostel = await Hostel.findOne({ name: reviewData.name });
