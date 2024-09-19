@@ -24,13 +24,22 @@ export const addReview = async (req, res) => {
       }
     }
 
-    const isExistReview = await Review.findOne({
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    const isExistReviewToday = await Review.findOne({
       email: reviewData.email,
+      createdAt: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
     });
 
-    if (isExistReview) {
-      return res.status(204).json({ message: "Feedback already submitted" });
+    if (isExistReviewToday) {
+      return res.status(404).json({ message: "Feedback already submitted today" });
     }
+
 
     const hostel = await Hostel.findOne({ name: reviewData.name });
     if (!hostel) {
@@ -137,6 +146,36 @@ export const createHostel = async (req, res) => {
     }
 
     return res.status(201).json({ message: "Hostel created successfully", data: newHostel });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+export const getHostelReviewsByDate = async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ message: "Date parameter is required" });
+    }
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0); 
+
+    const endDate = new Date(date);
+    endDate.setHours(23, 59, 59, 999); 
+
+    const reviews = await Review.find({
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    }).populate('hostel', 'name');
+
+    if (!reviews || reviews.length === 0) {
+      return res.status(404).json({ message: "No reviews found for the specified date" });
+    }
+
+    return res.status(200).json({ data: reviews });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
