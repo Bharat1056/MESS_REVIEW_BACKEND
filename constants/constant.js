@@ -1,3 +1,3 @@
-export const skillsArrayLimit = 7
-export const higherMemberLimit = 2
-export const hashSaltRound = 10
+const date = new Date();
+const currentDate = date.toISOString().split("T")[0];
+export default currentDate

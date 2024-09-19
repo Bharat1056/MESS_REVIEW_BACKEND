@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { currentDate } from "../controller/hostel.controller";
+import currentDate from "../constants/constant.js";
 
 const reviewSchema = new mongoose.Schema({
   hostel: {

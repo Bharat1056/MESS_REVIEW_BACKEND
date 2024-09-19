@@ -1,8 +1,6 @@
 import Hostel from "../model/hostel.model.js";
 import Review from "../model/review.model.js";
-
-const date = new Date();
-export const currentDate = date.toISOString().split("T")[0];
+import currentDate from "./../constants/constant.js";
 
 export const addReview = async (req, res) => {
   try {
