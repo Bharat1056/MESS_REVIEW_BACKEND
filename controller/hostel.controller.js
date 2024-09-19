@@ -1,71 +1,61 @@
 import Hostel from "../model/hostel.model.js";
 import Review from "../model/review.model.js";
 
+const date = new Date();
+export const currentDate = date.toISOString().split("T")[0];
+
 export const addReview = async (req, res) => {
   try {
+    // get data from frontend
     const reviewData = req.body;
-    const isHostelExist = await Hostel.findOne({ name: reviewData.name });
+    // check that hostel exist or not
+    let isHostelExist = await Hostel.findOne({ name: reviewData.name }); // name means hostel name
+    // if not then do this
     if (!isHostelExist) {
-      const newHostel = await Hostel.create({
+      isHostelExist = await Hostel.create({
         name: reviewData.name,
-        avgHygiene: 1,
-        avgFoodQuality: 1,
-        avgFoodQuantity: 1,
-        avgFoodTiming: 1,
-        avgMenuAdherence: 1,
-        avgStaffHygiene: 1,
-        avgTableCleanliness: 1,
-        avgStaffBehavior: 1,
-        avgPlateCleanliness: 1,
-        avgWaitingTime: 1,
+        avgHygiene: 0,
+        avgFoodQuality: 0,
+        avgFoodQuantity: 0,
+        avgFoodTiming: 0,
+        avgMenuAdherence: 0,
+        avgStaffHygiene: 0,
+        avgTableCleanliness: 0,
+        avgStaffBehavior: 0,
+        avgPlateCleanliness: 0,
+        avgWaitingTime: 0,
+        createdAt: currentDate,
       });
-      if (!newHostel) {
+      if (!isHostelExist) {
         return res.status(500).json({ message: "Failed to create Hostel" });
       }
     }
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    // check that review exist or not on that current date
     const isExistReviewToday = await Review.findOne({
-      email: reviewData.email,
-      createdAt: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
+      email: reviewData.email, // user email
+      createdAt: currentDate,
     });
 
+    // if exist then do this
     if (isExistReviewToday) {
-      return res.status(404).json({ message: "Feedback already submitted today" });
+      return res
+        .status(404)
+        .json({ message: "Feedback already submitted today" });
     }
-
-
-    const hostel = await Hostel.findOne({ name: reviewData.name });
-    if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" });
-    }
-
-    Object.keys(reviewData).forEach((key) => {
-      if (reviewData[key] <= 2 && (key !== "email" || key !== "hostel")) {
-        reviewData[key] = 3;
-      }
-    });
-
-    const ip = req.ip;
-    console.log( "ipaddress: " +ip);
 
     const newReview = await Review.create({
-      hostel: hostel._id,
-      ipAddress: ip,
+      hostel: isHostelExist._id,
       ...reviewData,
+      createdAt: currentDate,
     });
 
     if (!newReview) {
       return res.status(500).json({ message: "Failed to add review" });
     }
 
-    const reviews = await Review.find({ hostel: hostel._id });
+    // here we get all the reviews in that particular hostel
+    const reviews = await Review.find({ hostel: isHostelExist._id });
 
     const totalReviews = reviews.length;
 
@@ -89,10 +79,14 @@ export const addReview = async (req, res) => {
         reviews.reduce((sum, r) => sum + r.plateCleanliness, 0) / totalReviews,
       avgWaitingTime:
         reviews.reduce((sum, r) => sum + r.waitingTime, 0) / totalReviews,
-        totalReviews
+      totalReviews,
+      createdAt: currentDate,
     };
 
-    const hostelUpdate = await Hostel.findByIdAndUpdate(hostel._id, newAverages);
+    const hostelUpdate = await Hostel.findByIdAndUpdate(
+      isHostelExist._id,
+      newAverages
+    );
     if (!hostelUpdate) {
       return res.status(500).json({ message: "Failed to update averages" });
     }
@@ -106,76 +100,24 @@ export const addReview = async (req, res) => {
   }
 };
 
-export const getHostelReviews = async (req, res) => {
-  try {
-    const hostel = await Hostel.find({});
-
-    if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" });
-    }
-
-
-    return res.status(200).json({ data: hostel });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-};
-
-export const createHostel = async (req, res) => {
-  try {
-    const { name } = req.body;
-    const isExistHostel = await Hostel.findOne({ name });
-    if (isExistHostel) {
-      return res.status(404).json({ message: "Hostel already exists" });
-    }
-    const newHostel = await Hostel.create({
-      name,
-      avgHygiene: 1,
-      avgFoodQuality: 1,
-      avgFoodQuantity: 1,
-      avgFoodTiming: 1,
-      avgMenuAdherence: 1,
-      avgStaffHygiene: 1,
-      avgTableCleanliness: 1,
-      avgStaffBehavior: 1,
-      avgPlateCleanliness: 1,
-      avgWaitingTime: 1,
-    });
-    if (!newHostel) {
-      return res.status(500).json({ message: "Failed to create Hostel" });
-    }
-
-    return res.status(201).json({ message: "Hostel created successfully", data: newHostel });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-};
-
-
 export const getHostelReviewsByDate = async (req, res) => {
   try {
     const { date } = req.query;
     if (!date) {
       return res.status(400).json({ message: "Date parameter is required" });
     }
-    const startDate = new Date(date);
-    startDate.setHours(0, 0, 0, 0); 
 
-    const endDate = new Date(date);
-    endDate.setHours(23, 59, 59, 999); 
+    const totalHostelReview = await Hostel.find({
+      createdAt: date,
+    });
 
-    const reviews = await Review.find({
-      createdAt: {
-        $gte: startDate,
-        $lte: endDate
-      }
-    }).populate('hostel', 'name');
-
-    if (!reviews || reviews.length === 0) {
-      return res.status(404).json({ message: "No reviews found for the specified date" });
+    if (!totalHostelReview || totalHostelReview.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No reviews found for the specified date" });
     }
 
-    return res.status(200).json({ data: reviews });
+    return res.status(200).json({ data: totalHostelReview });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

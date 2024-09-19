@@ -1,13 +1,10 @@
 import express from 'express';
-import { addReview, getHostelReviews, createHostel,getHostelReviewsByDate } from '../controller/hostel.controller.js';
+import { addReview, getHostelReviewsByDate } from '../controller/hostel.controller.js';
 
 const router = express.Router();
 
 router.post('/add', addReview);
 
-router.get('/get', getHostelReviews);
-
-router.post('/create', createHostel);
-router.get('/getByDate', getHostelReviewsByDate);
+router.get('/getByDate/:date', getHostelReviewsByDate);
 
 export default router

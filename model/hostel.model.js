@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { currentDate } from "../controller/hostel.controller";
 
 const hostelSchema = new mongoose.Schema(
   {
@@ -80,8 +81,11 @@ const hostelSchema = new mongoose.Schema(
       defaultValue: 1,
       required: true,
     },
+    createdAt: {
+      type: String,
+      default: currentDate,
+    }
   },
-  { timestamps: true }
 );
 
 const Hostel = mongoose.model("Hostel", hostelSchema);
