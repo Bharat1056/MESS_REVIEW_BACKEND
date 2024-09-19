@@ -5,6 +5,6 @@ const router = express.Router();
 
 router.post('/add', addReview);
 
-router.get('/getByDate/:date', getHostelReviewsByDate);
+router.get('/getByDate', getHostelReviewsByDate);
 
 export default router

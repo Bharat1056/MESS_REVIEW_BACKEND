@@ -1,6 +1,7 @@
 import Hostel from "../model/hostel.model.js";
 import Review from "../model/review.model.js";
 import currentDate from "./../constants/constant.js";
+import { calculateHostelReview } from "./../constants/constant.js";
 
 export const addReview = async (req, res) => {
   try {
@@ -83,10 +84,35 @@ export const addReview = async (req, res) => {
 
     const hostelUpdate = await Hostel.findByIdAndUpdate(
       isHostelExist._id,
-      newAverages
+      newAverages, { new: true }
     );
+
     if (!hostelUpdate) {
-      return res.status(500).json({ message: "Failed to update averages" });
+      return res.status(500).json({ message: "Failed to update hostel avg" });
+    }
+    console.log(hostelUpdate)
+
+    const totalScore = calculateHostelReview(
+      hostelUpdate.avgHygiene,
+      hostelUpdate.avgFoodQuality,
+      hostelUpdate.avgFoodQuantity,
+      hostelUpdate.avgFoodTiming,
+      hostelUpdate.avgMenuAdherence,
+      hostelUpdate.avgStaffHygiene,
+      hostelUpdate.avgTableCleanliness,
+      hostelUpdate.avgStaffBehavior,
+      hostelUpdate.avgPlateCleanliness,
+      hostelUpdate.avgWaitingTime
+    );
+
+    console.log(totalScore)
+
+    const latestUpdate = await Hostel.findByIdAndUpdate(hostelUpdate._id, {
+      totalMark: totalScore,
+    }, { new: true });
+
+    if (!latestUpdate) {
+      return res.status(500).json({ message: "Failed to update total score" });
     }
 
     return res.status(201).json({
