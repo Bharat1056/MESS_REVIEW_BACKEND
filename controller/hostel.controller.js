@@ -1,14 +1,43 @@
 import Hostel from "../model/hostel.model.js";
 import Review from "../model/review.model.js";
-import currentDate from "./../constants/constant.js";
+import currentDate, { hostelNames } from "./../constants/constant.js";
 import { calculateHostelReview } from "./../constants/constant.js";
+import jwt from "jsonwebtoken";
 
 export const addReview = async (req, res) => {
   try {
-    // get data from frontend
     const reviewData = req.body;
-    // check that hostel exist or not
-    let isHostelExist = await Hostel.findOne({ name: reviewData.name }); // name means hostel name
+    let isHostelExist = await Hostel.findOne({ name: reviewData.name });
+    const token = req.cookies?.accessToken;
+
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    };
+
+    if (token) {
+      const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      const tokenEmail = decodedToken.email;
+      const tokenDate = decodedToken.createdAt;
+      const tokenHostel = decodedToken.hostel;
+
+      if (
+        !(tokenEmail === reviewData.email) &&
+        !(tokenDate > currentDate) &&
+        !(tokenHostel === reviewData.name)
+      ) {
+        return res
+          .status(404)
+          .json({ message: "Denied for unusual Review activity" });
+      }
+    }
+
+    if (!hostelNames.includes(reviewData.name)) {
+      return res
+        .status(404)
+        .json({ message: "Denied Review for unusual activity" });
+    }
+
     // if not then do this
     if (!isHostelExist) {
       isHostelExist = await Hostel.create({
@@ -39,7 +68,7 @@ export const addReview = async (req, res) => {
     // if exist then do this
     if (isExistReviewToday) {
       return res
-        .status(404)
+        .status(202)
         .json({ message: "Feedback already submitted today" });
     }
 
@@ -52,6 +81,18 @@ export const addReview = async (req, res) => {
     if (!newReview) {
       return res.status(500).json({ message: "Failed to add review" });
     }
+
+    const accessToken = await jwt.sign(
+      {
+        email: reviewData.email,
+        hostel: reviewData.name,
+        createdAt: currentDate,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+      }
+    );
 
     // here we get all the reviews in that particular hostel
     const reviews = await Review.find({ hostel: isHostelExist._id });
@@ -84,13 +125,13 @@ export const addReview = async (req, res) => {
 
     const hostelUpdate = await Hostel.findByIdAndUpdate(
       isHostelExist._id,
-      newAverages, { new: true }
+      newAverages,
+      { new: true }
     );
 
     if (!hostelUpdate) {
       return res.status(500).json({ message: "Failed to update hostel avg" });
     }
-    console.log(hostelUpdate)
 
     const totalScore = calculateHostelReview(
       hostelUpdate.avgHygiene,
@@ -105,17 +146,20 @@ export const addReview = async (req, res) => {
       hostelUpdate.avgWaitingTime
     );
 
-    console.log(totalScore)
-
-    const latestUpdate = await Hostel.findByIdAndUpdate(hostelUpdate._id, {
-      totalMark: totalScore,
-    }, { new: true });
+    const latestUpdate = await Hostel.findByIdAndUpdate(
+      hostelUpdate._id,
+      {
+        totalMark: totalScore,
+      },
+      { new: true }
+    );
 
     if (!latestUpdate) {
       return res.status(500).json({ message: "Failed to update total score" });
     }
 
-    return res.status(201).json({
+    console.log(accessToken)
+    return res.cookie("accessToken", accessToken, options).status(201).json({
       message: "Review added successfully and averages updated",
       review: newReview,
     });

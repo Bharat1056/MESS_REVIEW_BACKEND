@@ -1,7 +1,8 @@
 import mongoose, { Schema } from "mongoose";
 import currentDate from "../constants/constant.js";
+import jwt from "jsonwebtoken";
 
-const reviewSchema = new mongoose.Schema({
+const reviewSchema = new Schema({
   hostel: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Hostel",
@@ -86,6 +87,20 @@ reviewSchema.pre("save", function () {
     select: "name",
   });
 });
+
+reviewSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    {
+      email: this.email,
+      hostel: this.hostelName,
+      createdAt: this.createdAt,
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+    }
+  );
+};
 
 const Review = mongoose.model("Review", reviewSchema);
 export default Review;

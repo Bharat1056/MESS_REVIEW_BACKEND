@@ -1,10 +1,11 @@
 import mongoose, { Schema } from "mongoose";
-import currentDate from "../constants/constant.js";
+import currentDate, { hostelNames } from "../constants/constant.js";
 
-const hostelSchema = new mongoose.Schema({
+const hostelSchema = new Schema({
   name: {
     type: String,
     required: true,
+    enum: hostelNames,
   },
   totalReviews: {
     type: Number,

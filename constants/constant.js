@@ -43,4 +43,20 @@ export function calculateHostelReview(
   return Math.ceil(totalScore);
 }
 
+export const hostelNames = [
+  "Agastya",
+  "Pulastya",
+  "Pulaha",
+  "Marichi",
+  "Kratu",
+  "Atri",
+  "Vasistha",
+  "Angira",
+  "Anuradha",
+  "Arundhati",
+  "Visakha",
+  "Rohini",
+  "Vasundhara",
+];
+
 export default currentDate;
