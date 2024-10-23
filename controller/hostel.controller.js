@@ -9,6 +9,7 @@ export const addReview = async (req, res) => {
     const reviewData = req.body;
     let isHostelExist = await Hostel.findOne({ name: reviewData.name });
     const token = req.cookies?.accessToken;
+    console.log(token);
 
     const options = {
       httpOnly: true,
