@@ -1,59 +1,43 @@
 import Hostel from "../model/hostel.model.js";
 import Review from "../model/review.model.js";
-import currentDate from "./../constants/constant.js";
+import currentDate, { hostelNames } from "./../constants/constant.js";
 import { calculateHostelReview } from "./../constants/constant.js";
-import jwt from "jsonwebtoken"
-
-const generateAccessTokens = async ({ email, createdAt , hostel}) => {
-  try {
-    const review = await Review.findOne({ email: email, createdAt: createdAt , hostelName:hostel});
-    const accessToken = await review.generateAccessToken();
-    // console.log(accessToken);
-
-    // review.accessToken = accessToken;
-    // await review.save({ validateBeforeSave: false },{new: true});
-
-    return accessToken;
-  } catch (error) {
-    console.log("Something went wrong while generating access token", error);
-  }
-};
+import jwt from "jsonwebtoken";
 
 export const addReview = async (req, res) => {
   try {
-    // get data from frontend
     const reviewData = req.body;
-    // console.log(reviewData,"nm");
-   
-    // check that hostel exist or not
-    let isHostelExist = await Hostel.findOne({ name: reviewData.name }); // name means hostel name
-    // console.log(isHostelExist);
-    const token = req.cookies?.accessToken
-    console.log(token);
-    
+    let isHostelExist = await Hostel.findOne({ name: reviewData.name });
+    const token = req.cookies?.accessToken;
+
     const options = {
       httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
     };
 
     if (token) {
-      const decodedToken = jwt.verify(token,process.env.ACCESS_TOKEN_SECRET)
-      const tokenEmail = decodedToken.email
-      console.log(tokenEmail);
-      
-      const tokenDate = decodedToken.createdAt
-      console.log(tokenDate);
-      
-      const tokenHostel = decodedToken.hostel
-      console.log(tokenHostel);
-      
+      const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      const tokenEmail = decodedToken.email;
+      const tokenDate = decodedToken.createdAt;
+      const tokenHostel = decodedToken.hostel;
 
-      if(!(tokenEmail === reviewData.email) && !(tokenDate !== currentDate) && !(tokenHostel === reviewData.name)){
-        return res.status(404).json({message: "Inavalid email or review has been submited"})
-      }else{
-        return res.status(200).clearCookie("accessToken",options)
+      if (
+        !(tokenEmail === reviewData.email) &&
+        !(tokenDate > currentDate) &&
+        !(tokenHostel === reviewData.name)
+      ) {
+        return res
+          .status(404)
+          .json({ message: "Denied for unusual Review activity" });
       }
     }
-    
+
+    if (!hostelNames.includes(reviewData.name)) {
+      return res
+        .status(404)
+        .json({ message: "Denied Review for unusual activity" });
+    }
+
     // if not then do this
     if (!isHostelExist) {
       isHostelExist = await Hostel.create({
@@ -75,9 +59,6 @@ export const addReview = async (req, res) => {
       }
     }
 
-    // console.log(isHostelExist,"ok");
-    
-
     // check that review exist or not on that current date
     const isExistReviewToday = await Review.findOne({
       email: reviewData.email, // user email
@@ -87,7 +68,7 @@ export const addReview = async (req, res) => {
     // if exist then do this
     if (isExistReviewToday) {
       return res
-        .status(404)
+        .status(202)
         .json({ message: "Feedback already submitted today" });
     }
 
@@ -97,24 +78,21 @@ export const addReview = async (req, res) => {
       createdAt: currentDate,
     });
 
-    const accessToken = await generateAccessTokens({
-      email: reviewData.email,
-      hostel: reviewData.name,
-      createdAt: currentDate,
-    });
-
-    console.log(accessToken);
-    
-
-    
-    
-    
-
     if (!newReview) {
       return res.status(500).json({ message: "Failed to add review" });
     }
 
-    // const updatedReview = await Review.findOne({email: reviewData.email}).select("-accessToken")
+    const accessToken = await jwt.sign(
+      {
+        email: reviewData.email,
+        hostel: reviewData.name,
+        createdAt: currentDate,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+      }
+    );
 
     // here we get all the reviews in that particular hostel
     const reviews = await Review.find({ hostel: isHostelExist._id });
@@ -154,7 +132,6 @@ export const addReview = async (req, res) => {
     if (!hostelUpdate) {
       return res.status(500).json({ message: "Failed to update hostel avg" });
     }
-    // console.log(hostelUpdate);
 
     const totalScore = calculateHostelReview(
       hostelUpdate.avgHygiene,
@@ -169,8 +146,6 @@ export const addReview = async (req, res) => {
       hostelUpdate.avgWaitingTime
     );
 
-    // console.log(totalScore);
-
     const latestUpdate = await Hostel.findByIdAndUpdate(
       hostelUpdate._id,
       {
@@ -183,13 +158,11 @@ export const addReview = async (req, res) => {
       return res.status(500).json({ message: "Failed to update total score" });
     }
 
-    return res.status(201)
-    .cookie("accessToken", accessToken, options)
-    .json({
+    console.log(accessToken)
+    return res.cookie("accessToken", accessToken, options).status(201).json({
       message: "Review added successfully and averages updated",
       review: newReview,
     });
-
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
